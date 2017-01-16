@@ -1,0 +1,95 @@
+FROM ubuntu:trusty
+
+RUN sudo apt-get -y update
+RUN sudo apt-get -y upgrade
+RUN apt-get install -y software-properties-common python-software-properties
+
+RUN sudo add-apt-repository --yes  ppa:beineri/opt-qt532-trusty
+RUN sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+RUN sudo apt-get -qq update
+RUN sudo apt-get install -y qt53base qt53websockets
+
+RUN sudo apt-get -y update
+RUN apt-get install -y default-jre \
+                maven \
+                git \
+                firefox \
+                xvfb \
+                openssh-server \
+                wkhtmltopdf \
+                xsltproc \
+                clang-format-3.6 \
+                liblua5.2 \
+                libxml2 \
+                lua-lpeg \
+                liblua5.2-dev \
+                libxml2-dev \
+                lua-lpeg-dev \
+                cppcheck \
+                libssl-dev \
+                libudev-dev \
+                libavahi-client-dev \
+                sqlite3 \
+                libsqlite3-dev \
+                automake1.11 \
+                libexpat1-dev \
+                ccache \
+                libxml2 \
+                libxml2-dev \
+                git \
+                libpulse-dev \
+                subversion \
+                doxygen \
+                graphviz \
+                mscgen \
+                libbluetooth3 \
+                libbluetooth-dev \
+                bluez-tools \
+                chromium-browser \
+                libgl1-mesa-dev \
+                libgtest-dev \
+                binutils \
+                cmake \
+                cmake-curses-gui \
+                gitk \
+                gcc \
+                g++ \
+                dos2unix \
+                gdebi \
+                python-pip \
+                curl \
+                xvfb
+
+RUN wget http://archive.ubuntu.com/ubuntu/pool/main/l/lcov/lcov_1.11-3_all.deb
+RUN sudo dpkg -i lcov_1.11-3_all.deb
+RUN apt-get -y install g++-4.9 gcc-4.9
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 20
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 20
+RUN update-alternatives --config gcc
+RUN update-alternatives --config g++
+RUN sudo ln -sf /usr/bin/gcov-4.9 /usr/bin/gcov
+RUN pip install pylint
+
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd
+
+RUN mkdir -p /var/run/sshd
+
+RUN adduser --quiet jenkins
+
+RUN echo "jenkins:jenkins" | chpasswd
+
+RUN sudo echo "jenkins ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+RUN echo -e '#!/bin/bash\nxvfb-run -a --server-args="-screen 0, 1024x768x24" /usr/bin/wkhtmltopdf -q $*' > /usr/bin/wkhtmltopdf.sh
+RUN chmod a+x /usr/bin/wkhtmltopdf.sh
+RUN ln -s /usr/bin/wkhtmltopdf.sh /usr/local/bin/wkhtmltopdf
+
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]
