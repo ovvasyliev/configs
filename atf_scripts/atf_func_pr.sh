@@ -19,32 +19,31 @@ seconds2time ()
 
 mkdir aut
 cd aut
-TEST_SET="policies_happy_paths.txt"
+TEST_SET="rc.txt"
 if [ "$POLICY" == "BASE" ]; then
 	wget http://172.30.23.4:8081/artifactory/OpenSDL/${SDL_BUILD}/OpenSDL.tar.gz
 else
-	wget http://172.30.23.4:8081/artifactory/OpenSDL_${POLICY}_Nightly/${SDL_BUILD}/OpenSDL.tar.gz
+	wget http://172.30.23.4:8081/artifactory/OpenSDL_Func_PR/${SDL_BUILD}/OpenSDL_${POLICY}.tar.gz
 fi
 if [ "$POLICY" == "HTTP" ]; then
 	TEST_SET="policies_happy_paths_HTTP.txt"
 fi
-if [ "$POLICY" == "EXTENDED" ]; then
+if [ "$POLICY" == "EXTERNAL_PROPRIETARY" ]; then
 	TEST_SET="policies_happy_paths_EXTERNAL_PROPRIETARY.txt"
 fi
 if [ "$POLICY" == "PROPRIETARY" ]; then
 	TEST_SET="policies_happy_paths_PROPRIETARY.txt"
 fi
 
-tar -xvf OpenSDL.tar.gz
+tar -xvf OpenSDL_${POLICY}.tar.gz
 cd bin
 pwd
 export LD_LIBRARY_PATH=.
 sudo ldconfig
 cd ../..
-ls -l
 git clone https://github.com/smartdevicelink/sdl_atf_test_scripts.git
 cd sdl_atf_test_scripts
-git checkout feature/external_proprietary_policy
+git checkout feature/extended_policy_functionality
 cd ..
 ls -l
 cp -r ${WORKSPACE}/sdl_atf_test_scripts/. ${WORKSPACE}/
@@ -52,8 +51,7 @@ pwd
 cp -rf ${WORKSPACE}/aut/bin/api/. ${WORKSPACE}/data/
 ls -l data/
 echo ${POLICY}
-echo "" >> failed_tests.txt;
-failed=0;
+
 #mkdir tmp
 
 #cp ./test_scripts/Polices/Policies_Security/002_ATF_P_Policies_Performance_Requirement.lua tmp/002_ATF_P_Policies_Performance_Requirement.lua
@@ -63,7 +61,7 @@ failed=0;
 echo "Backup SDL"
 #Backup
 ./SDL_environment_setup.sh -b ${WORKSPACE}/aut/bin
-echo "<html><head><title>ATF Nightly ${POLICY} Report - Build#${BUILD_NUMBER}</title></head>" >> atf_report.html
+echo "<html><head><title>ATF Pull Request Extended Functionality ${POLICY} Report - Build#${BUILD_NUMBER}</title></head>" >> atf_report.html
 
 echo "<script src='https://code.jquery.com/jquery-3.1.1.min.js' integrity='sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=' crossorigin='anonymous'></script>" >> atf_report.html
 echo "<script src='https://code.jquery.com/ui/1.12.0/jquery-ui.min.js' integrity='sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E=' crossorigin='anonymous'></script>" >> atf_report.html
@@ -91,8 +89,7 @@ pased_tests=0;
 failed_tests=0;
 echo "<testsuite name='ALL TESTS_${POLICY}'>" >> junit.xml
 #for i in $(find ./tmp/ -type f -name "*.lua");
-echo "$(cat ./test_sets/$TEST_SET)";
-failed=0;
+echo "$(cat ./test_sets/$TEST_SET)" 
 while read -r i
 do
  echo "Jira = " $i | awk '{print $2}';
@@ -109,6 +106,7 @@ do
  	echo "Test passed";
     echo "<tr> <td>$test_script</td><td bgcolor='green'>Passed</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
     echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime' />" >> junit.xml;
+	echo "$(basename $test_script .lua)" >> success_tests.txt;
  fi
  if [ $result -ne 0 ]; then
  	stop=$SECONDS;
@@ -136,8 +134,8 @@ do
  #Restore
  ./SDL_environment_setup.sh -r ${WORKSPACE}/aut/bin
 done < ./test_sets/$TEST_SET
-echo "</table></br>Total time: $(seconds2time $total_time)" >> atf_report.html
-echo "Passed=${pased_tests}, Failed=${failed_tests}</html>" >> atf_report.html
+echo "</table><br>Total time: $(seconds2time $total_time)" >> atf_report.html
+echo "</br>Passed=${pased_tests}, Failed=${failed_tests}</html>" >> atf_report.html
 echo "</testsuite>" >> junit.xml
 echo "</testsuites>" >> junit.xml
 
@@ -151,21 +149,18 @@ echo "{ATF_FAILED:${failed_tests} }"
 echo "{ATF_TOTAL:$(( pased_tests+failed_tests )) }"
 
 wget -O old_failed_tests.txt ${JOB_URL}lastCompletedBuild/artifact/failed_tests.txt
+wget -O old_success_tests.txt ${JOB_URL}lastCompletedBuild/artifact/success_tests.txt
 
-if [ ${PULL_ID} -ne 0 ]; then
-	curl -H "Content-type: application/json" -X POST -u JenkinsSDLOnCloud:1qaz@WSX -d "{\"body\": \"ATF failed(Passed=${pased_tests}, Failed=${failed_tests}) ${BUILD_URL}\", \"in_reply_to\": 0}" https://api.github.comepos/smartdevicelink/sdl_core/issues/${PULL_ID}/comments
-fi
+awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
+awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
+
+NUMOFFAILURES=$(cat new_failures.txt | wc -l )
+NUMOFSUCCESS=$(cat new_success.txt | wc -l )
 
 
 if [ $failed -ne 0 ]; then
-	if [ -f old_failed_tests.txt ]; then
-		if [ -f failed_tests.txt ]; then
-			awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
-		fi
-	fi
-	
-	if [ -f failed_tests.txt ]; then
-		NUMOFLINES=$(cat new_failures.txt | wc -l )
-	fi
-	exit 1
+  if [ ${PULL_ID} -ne 0 ]; then
+	curl -H "Content-type: application/json" -X POST -u JenkinsSDLOnCloud:1qaz@WSX -d "{\"body\": \"ATF failed. Passed=${pased_tests}(+${NUMOFSUCCESS}) , Failed=${failed_tests} (+${NUMOFFAILURES}) ${BUILD_URL}\", \"in_reply_to\": 0}" https://api.github.comepos/smartdevicelink/sdl_core/issues/${PULL_ID}/comments
+  fi
+ exit 1
 fi

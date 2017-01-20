@@ -89,7 +89,9 @@ pased_tests=0;
 failed_tests=0;
 echo "<testsuite name='ALL TESTS_${POLICY}'>" >> junit.xml
 #for i in $(find ./tmp/ -type f -name "*.lua");
-echo "$(cat ./test_sets/$TEST_SET)" 
+echo "$(cat ./test_sets/$TEST_SET)"
+touch failed_tests.txt;
+touch success_tests.txt;
 while read -r i
 do
  echo "Jira = " $i | awk '{print $2}';
@@ -106,6 +108,7 @@ do
  	echo "Test passed";
     echo "<tr> <td>$test_script</td><td bgcolor='green'>Passed</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
     echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime' />" >> junit.xml;
+	failed=0;
  fi
  if [ $result -ne 0 ]; then
  	stop=$SECONDS;
@@ -149,11 +152,14 @@ echo "{ATF_TOTAL:$(( pased_tests+failed_tests )) }"
 
 wget -O old_failed_tests.txt ${JOB_URL}lastCompletedBuild/artifact/failed_tests.txt
 
-awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
+if [ -f old_failed_tests.txt ]; then
+		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
+	fi
+fi
 
 NUMOFLINES=$(cat new_failures.txt | wc -l )
 
-cp new_failures.txt new_failures($NUMOFLINES).txt
+#cp new_failures.txt new_failures($NUMOFLINES).txt
 
 if [ $failed -ne 0 ]; then
   if [ ${PULL_ID} -ne 0 ]; then

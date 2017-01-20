@@ -89,7 +89,9 @@ pased_tests=0;
 failed_tests=0;
 echo "<testsuite name='ALL TESTS_${POLICY}'>" >> junit.xml
 #for i in $(find ./tmp/ -type f -name "*.lua");
-echo "$(cat ./test_sets/$TEST_SET)" 
+echo "$(cat ./test_sets/$TEST_SET)";
+touch failed_tests.txt;
+touch success_tests.txt;
 while read -r i
 do
  echo "Jira = " $i | awk '{print $2}';
@@ -151,8 +153,13 @@ echo "{ATF_TOTAL:$(( pased_tests+failed_tests )) }"
 wget -O old_failed_tests.txt ${JOB_URL}lastCompletedBuild/artifact/failed_tests.txt
 wget -O old_success_tests.txt ${JOB_URL}lastCompletedBuild/artifact/success_tests.txt
 
-awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
-awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
+if [ -f old_failed_tests.txt ]; then
+	if [ -f old_success_tests.txt ]; then
+		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
+		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
+	fi
+fi
+
 
 NUMOFFAILURES=$(cat new_failures.txt | wc -l )
 NUMOFSUCCESS=$(cat new_success.txt | wc -l )

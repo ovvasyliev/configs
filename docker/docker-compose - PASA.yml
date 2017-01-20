@@ -1,0 +1,47 @@
+jenkins_agent:
+    build: .
+    dockerfile: Dockerfile_slave
+    restart: always
+    labels:
+      container_group: jenkins
+      
+atf_slave:
+    build: .
+    dockerfile: Dockerfile_slave
+    labels:
+      container_group: jenkins
+      
+jenkins:
+    image: jenkinsci/jenkins:latest
+    container_name: jenkins_server
+    environment:
+     - JENKINS_JAVA_OPTIONS=-Dmail.smtp.starttls.enable=true
+     - JENKINS_OPTS=-Dmail.smtp.starttls.enable=true
+     - JAVA_ARGS=-Dmail.smtp.starttls.enable=true
+     - JENKINS_OPTS=mail.smtp.starttls.enable=true
+     - JAVA_OPTS=-Dmail.smtp.starttls.enable=true -Djava.awt.headless=true
+    links:
+     - jenkins_agent:jenkins
+    ports:
+     - "8080:8080"
+     - "50000:50000"
+     - "23:22"
+    volumes:
+     - "/home/jenkins/docker/jenkins_files:/var/jenkins_home"
+     - "/home/jenkins/jenkins_temp:/var/tmp"
+    restart: always
+    labels:
+      container_group: jenkins
+
+artifactory:
+    image: docker.bintray.io/jfrog/artifactory-oss:latest
+    container_name: artifactory
+    ports:
+     - "8081:8081"
+    volumes:
+     - "/home/jenkins/docker/art/artifactory_data:/var/opt/jfrog/artifactory/data"
+     - "/home/jenkins/docker/art/artifactory_logs:/var/opt/jfrog/artifactory/logs"
+     - "/home/jenkins/docker/art/artifactory_etc:/var/opt/jfrog/artifactory/etc"
+    restart: always
+    labels:
+      container_group: jenkins
