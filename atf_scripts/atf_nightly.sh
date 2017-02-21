@@ -76,6 +76,7 @@ echo "<testsuite name='ALL TESTS_${POLICY}'>" >> junit.xml
 #for i in $(find ./tmp/ -type f -name "*.lua");
 for i in $(cat ./test_sets/${TEST_SET});
 do
+ if [[ $i != ";"* ]]; then
  echo $i;
  start=$SECONDS;
  ps -aux | grep smartDeviceLinkCore | awk '{print $2}' | xargs kill -9;
@@ -114,6 +115,14 @@ do
  echo "Restore SDL"
  #Restore
  ./SDL_environment_setup.sh -r ${WORKSPACE}/aut/bin
+ else
+  echo "Test skipped - $i"
+  echo "<tr> <td>$test_script</td><td bgcolor='yellow'>Skipped</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
+  echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
+  echo "<skipped /></testcase>" >> junit.xml
+  echo "Test failed with exit code = $result!";
+  echo "$(basename $test_script .lua)" >> skipped_tests.txt;  
+fi
 done
 echo "<tr><td></td><td></td><td>Total time: $(seconds2time $total_time)</td></tr>" >> atf_report.html
 echo "</table></br>Passed=${pased_tests}, Failed=${failed_tests}</html>" >> atf_report.html

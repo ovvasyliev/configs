@@ -95,6 +95,7 @@ echo "$(cat ./test_sets/$TEST_SET)";
 failed=0;
 while read -r i
 do
+ if [[ $i != ";"* ]]; then
  echo "Jira = " $i | awk '{print $2}';
  test_script=$(echo $i | awk '{print $1}')
  echo "Script = "$test_script
@@ -135,6 +136,14 @@ do
  echo "Restore SDL"
  #Restore
  ./SDL_environment_setup.sh -r ${WORKSPACE}/aut/bin
+ else
+  echo "Test skipped - $i"
+  echo "<tr> <td>$test_script</td><td bgcolor='yellow'>Skipped</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
+  echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
+  echo "<skipped /></testcase>" >> junit.xml
+  echo "Test failed with exit code = $result!";
+  echo "$(basename $test_script .lua)" >> skipped_tests.txt;  
+fi
 done < ./test_sets/$TEST_SET
 echo "</table></br>Total time: $(seconds2time $total_time)" >> atf_report.html
 echo "Passed=${pased_tests}, Failed=${failed_tests}</html>" >> atf_report.html

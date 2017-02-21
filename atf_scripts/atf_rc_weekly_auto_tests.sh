@@ -20,20 +20,8 @@ seconds2time ()
 mkdir aut
 cd aut
 TEST_SET="rc.txt"
-if [ "$POLICY" == "BASE" ]; then
-	wget http://172.30.23.4:8081/artifactory/OpenSDL/${SDL_BUILD}/OpenSDL.tar.gz
-else
-	wget http://172.30.23.4:8081/artifactory/OpenSDL_RC_PR/${SDL_BUILD}/OpenSDL_${POLICY}_${RC}.tar.gz
-fi
-#if [ "$POLICY" == "HTTP" ]; then
-#	TEST_SET="policies_happy_paths_HTTP.txt"
-#fi
-#if [ "$POLICY" == "EXTENDED" ]; then
-#	TEST_SET="policies_happy_paths_EXTERNAL_PROPRIETARY.txt"
-#fi
-#if [ "$POLICY" == "PROPRIETARY" ]; then
-#	TEST_SET="policies_happy_paths_PROPRIETARY.txt"
-#fi
+
+wget http://172.30.23.4:8081/artifactory/OpenSDL_RC_Weekly_Auto/${SDL_BUILD}/OpenSDL_${POLICY}_${RC}.tar.gz
 
 tar -xvf OpenSDL_${POLICY}_${RC}.tar.gz
 cd bin
@@ -89,9 +77,10 @@ pased_tests=0;
 failed_tests=0;
 echo "<testsuite name='ALL TESTS_${POLICY}'>" >> junit.xml
 #for i in $(find ./tmp/ -type f -name "*.lua");
-echo "$(cat ./test_sets/$TEST_SET)";
+echo "$(cat ./test_sets/$TEST_SET)"
 touch failed_tests.txt;
 touch success_tests.txt;
+failed=0;
 while read -r i
 do
  if [[ $i != ";"* ]]; then
@@ -109,7 +98,6 @@ do
  	echo "Test passed";
     echo "<tr> <td>$test_script</td><td bgcolor='green'>Passed</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
     echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime' />" >> junit.xml;
-	echo "$(basename $test_script .lua)" >> success_tests.txt;
  fi
  if [ $result -ne 0 ]; then
  	stop=$SECONDS;
@@ -160,23 +148,19 @@ echo "{ATF_FAILED:${failed_tests} }"
 echo "{ATF_TOTAL:$(( pased_tests+failed_tests )) }"
 
 wget -O old_failed_tests.txt ${JOB_URL}lastCompletedBuild/artifact/failed_tests.txt
-wget -O old_success_tests.txt ${JOB_URL}lastCompletedBuild/artifact/success_tests.txt
 
 if [ -f old_failed_tests.txt ]; then
-	if [ -f old_success_tests.txt ]; then
 		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
-		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
 	fi
 fi
 
+NUMOFLINES=$(cat new_failures.txt | wc -l )
 
-NUMOFFAILURES=$(cat new_failures.txt | wc -l )
-NUMOFSUCCESS=$(cat new_success.txt | wc -l )
-
+#cp new_failures.txt new_failures($NUMOFLINES).txt
 
 if [ $failed -ne 0 ]; then
   if [ ${PULL_ID} -ne 0 ]; then
-	curl -H "Content-type: application/json" -X POST -u JenkinsSDLOnCloud:1qaz@WSX -d "{\"body\": \"ATF failed. Passed=${pased_tests}(+${NUMOFSUCCESS}) , Failed=${failed_tests} (+${NUMOFFAILURES}) ${BUILD_URL}\", \"in_reply_to\": 0}" https://api.github.comepos/smartdevicelink/sdl_core/issues/${PULL_ID}/comments
+	curl -H "Content-type: application/json" -X POST -u JenkinsSDLOnCloud:1qaz@WSX -d "{\"body\": \"ATF failed(Passed=${pased_tests}, Failed=${failed_tests}) ${BUILD_URL}\", \"in_reply_to\": 0}" https://api.github.comepos/smartdevicelink/sdl_core/issues/${PULL_ID}/comments
   fi
  exit 1
 fi

@@ -23,19 +23,19 @@ TEST_SET="rc.txt"
 if [ "$POLICY" == "BASE" ]; then
 	wget http://172.30.23.4:8081/artifactory/OpenSDL/${SDL_BUILD}/OpenSDL.tar.gz
 else
-	wget http://172.30.23.4:8081/artifactory/OpenSDL_RC_PR/${SDL_BUILD}/OpenSDL_${POLICY}_${RC}.tar.gz
+	wget http://172.30.23.4:8081/artifactory/OpenSDL_Func_Nightly/${SDL_BUILD}/OpenSDL_${POLICY}.tar.gz
 fi
-#if [ "$POLICY" == "HTTP" ]; then
-#	TEST_SET="policies_happy_paths_HTTP.txt"
-#fi
-#if [ "$POLICY" == "EXTENDED" ]; then
-#	TEST_SET="policies_happy_paths_EXTERNAL_PROPRIETARY.txt"
-#fi
-#if [ "$POLICY" == "PROPRIETARY" ]; then
-#	TEST_SET="policies_happy_paths_PROPRIETARY.txt"
-#fi
+if [ "$POLICY" == "HTTP" ]; then
+	TEST_SET="policies_happy_paths_HTTP.txt"
+fi
+if [ "$POLICY" == "EXTERNAL_PROPRIETARY" ]; then
+	TEST_SET="policies_happy_paths_EXTERNAL_PROPRIETARY.txt"
+fi
+if [ "$POLICY" == "PROPRIETARY" ]; then
+	TEST_SET="policies_happy_paths_PROPRIETARY.txt"
+fi
 
-tar -xvf OpenSDL_${POLICY}_${RC}.tar.gz
+tar -xvf OpenSDL_${POLICY}.tar.gz
 cd bin
 pwd
 export LD_LIBRARY_PATH=.
@@ -43,7 +43,7 @@ sudo ldconfig
 cd ../..
 git clone https://github.com/smartdevicelink/sdl_atf_test_scripts.git
 cd sdl_atf_test_scripts
-git checkout feature/sdl_rc_functionality
+git checkout feature/extended_policy_functionality
 cd ..
 ls -l
 cp -r ${WORKSPACE}/sdl_atf_test_scripts/. ${WORKSPACE}/
@@ -61,7 +61,7 @@ echo ${POLICY}
 echo "Backup SDL"
 #Backup
 ./SDL_environment_setup.sh -b ${WORKSPACE}/aut/bin
-echo "<html><head><title>ATF Pull Request RC=${RC} ${POLICY} Report - Build#${BUILD_NUMBER}</title></head>" >> atf_report.html
+echo "<html><head><title>ATF Pull Request Extended Functionality ${POLICY} Report - Build#${BUILD_NUMBER}</title></head>" >> atf_report.html
 
 echo "<script src='https://code.jquery.com/jquery-3.1.1.min.js' integrity='sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=' crossorigin='anonymous'></script>" >> atf_report.html
 echo "<script src='https://code.jquery.com/ui/1.12.0/jquery-ui.min.js' integrity='sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E=' crossorigin='anonymous'></script>" >> atf_report.html
@@ -89,11 +89,10 @@ pased_tests=0;
 failed_tests=0;
 echo "<testsuite name='ALL TESTS_${POLICY}'>" >> junit.xml
 #for i in $(find ./tmp/ -type f -name "*.lua");
-echo "$(cat ./test_sets/$TEST_SET)";
-touch failed_tests.txt;
-touch success_tests.txt;
+echo "$(cat ./test_sets/$TEST_SET)" 
 while read -r i
 do
+ test_script=$(echo $i | awk '{print $1}')
  if [[ $i != ";"* ]]; then
  echo "Jira = " $i | awk '{print $2}';
  test_script=$(echo $i | awk '{print $1}')
@@ -162,13 +161,8 @@ echo "{ATF_TOTAL:$(( pased_tests+failed_tests )) }"
 wget -O old_failed_tests.txt ${JOB_URL}lastCompletedBuild/artifact/failed_tests.txt
 wget -O old_success_tests.txt ${JOB_URL}lastCompletedBuild/artifact/success_tests.txt
 
-if [ -f old_failed_tests.txt ]; then
-	if [ -f old_success_tests.txt ]; then
-		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
-		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
-	fi
-fi
-
+awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
+awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
 
 NUMOFFAILURES=$(cat new_failures.txt | wc -l )
 NUMOFSUCCESS=$(cat new_success.txt | wc -l )

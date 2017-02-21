@@ -19,7 +19,7 @@ seconds2time ()
 
 mkdir aut
 cd aut
-TEST_SET="rc.txt"
+TEST_SET="policies_smoke.txt"
 if [ "$POLICY" == "BASE" ]; then
 	wget http://172.30.23.4:8081/artifactory/OpenSDL/${SDL_BUILD}/OpenSDL.tar.gz
 else

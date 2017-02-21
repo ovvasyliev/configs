@@ -19,11 +19,11 @@ seconds2time ()
 
 mkdir aut
 cd aut
-TEST_SET="rc.txt"
+TEST_SET="policies_smoke.txt"
 if [ "$POLICY" == "BASE" ]; then
 	wget http://172.30.23.4:8081/artifactory/OpenSDL/${SDL_BUILD}/OpenSDL.tar.gz
 else
-	wget http://172.30.23.4:8081/artifactory/OpenSDL_RC_PR/${SDL_BUILD}/OpenSDL_${POLICY}_${RC}.tar.gz
+	wget http://172.30.23.4:8081/artifactory/OpenSDL_RC_NIGHTLY/${SDL_BUILD}/OpenSDL_${POLICY}_${RC}.tar.gz
 fi
 #if [ "$POLICY" == "HTTP" ]; then
 #	TEST_SET="policies_happy_paths_HTTP.txt"
@@ -142,7 +142,7 @@ do
   echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
   echo "<skipped /></testcase>" >> junit.xml
   echo "Test failed with exit code = $result!";
-  echo "$(basename $test_script .lua)" >> skipped_tests.txt;  
+  echo "$(basename $test_script .lua)" >> skipped_tests.txt;
 fi
 done < ./test_sets/$TEST_SET
 echo "</table><br>Total time: $(seconds2time $total_time)" >> atf_report.html
