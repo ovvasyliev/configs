@@ -1,0 +1,30 @@
+---
+- hosts: panasonic
+  vars:
+      date: "{{ lookup('pipe', 'date +%d-%m-%y') }}"
+      backup: "/home/tempuser/jenkins_backup/backup/"
+      origin: "/home/tempuser/docker/jenkins_files/"
+      destination: "/media/sf_docker_backup/"
+  tasks:
+    - name: Remove old backup
+      file:
+         path: "{{ backup }}"
+         state: absent
+      become: true
+    - name: Create new backup folder
+      file:
+         path: "{{ backup }}"
+         state: directory
+         mode: 0777
+    - name: Copy files from working jenkins to tmp location
+      command: sudo cp -r "{{ origin }}/" "{{ backup }}/jenkins_files"
+      become: true
+    - name: Archive jenkins_files
+      shell: sudo tar -czf "{{ backup }}/panasonic_jenkins_backup_{{ date }}.tar.gz" jenkins_files
+      args:
+          chdir: "{{ backup }}"
+      become: true
+    - synchronize:
+        mode: pull
+        src: "{{ backup }}/panasonic_jenkins_backup_{{ date }}.tar.gz"
+        dest: "{{ destination  }}"
