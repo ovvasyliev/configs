@@ -20,19 +20,20 @@ seconds2time ()
 mkdir aut
 cd aut
 TEST_SET=${TEST_SET}
-wget http://172.30.23.4:8081/artifactory/OpenSDL_CRQ/FUNC/BASE/${SDL_BUILD}/OpenSDL.tar.gz
-tar -xvf OpenSDL.tar.gz
+wget http://172.30.23.4:8081/artifactory/OpenSDL_Func_Nightly/${SDL_BUILD}/OpenSDL_${POLICY}.tar.gz
+tar -xvf OpenSDL_${POLICY}.tar.gz
 cd bin
 pwd
 export LD_LIBRARY_PATH=.
 sudo ldconfig
 cd ../..
-git clone https://github.com/smartdevicelink/sdl_atf_test_scripts.git
-cd sdl_atf_test_scripts
+echo ${ATF_REPOSITORY}
+git clone ${ATF_REPOSITORY}
+cd $(basename ${ATF_REPOSITORY})
 git checkout ${BRANCH}
 cd ..
 ls -l
-cp -r ${WORKSPACE}/sdl_atf_test_scripts/. ${WORKSPACE}/
+cp -r ${WORKSPACE}/$(basename ${ATF_REPOSITORY})/. ${WORKSPACE}/
 pwd
 cp -rf ${WORKSPACE}/aut/bin/api/. ${WORKSPACE}/data/
 ls -l data/
@@ -79,6 +80,8 @@ echo "$(cat ./test_sets/$TEST_SET)"
 touch failed_tests.txt;
 touch success_tests.txt;
 failed=0;
+tree -L 3
+echo "./start.sh --sdl-core=${WORKSPACE}/aut/bin $test_script"
 while read -r i
 do
  test_script=$(echo $i | awk '{print $1}')
@@ -98,16 +101,45 @@ do
     echo "<tr> <td>$test_script</td><td bgcolor='green'>Passed</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
     echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime' />" >> junit.xml;
  fi
- if [ $result -ne 0 ]; then
+ if [ $result -eq 1 ]; then
  	stop=$SECONDS;
  	(( runtime=stop-start ));
  	(( total_time=total_time+runtime ));
 	(( failed_tests=failed_tests+1 ))
+ 	echo "<tr> <td>$test_script</td><td bgcolor='orange'>Aborted</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
+	ERROR=$(cat ErrorLog.txt);
+    echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
+   	echo "<failure message='Something goes wrong'>$ERROR</failure>" >> junit.xml;
+    echo "</testcase>" >> junit.xml
+    echo "Test aborted with exit code = $result!";
+	echo "$(basename $test_script .lua)" >> failed_tests.txt;
+    failed=1;
+ fi
+ if [ $result -eq 2 ]; then
+ 	stop=$SECONDS;
+ 	(( runtime=stop-start ));
+ 	(( total_time=total_time+runtime ));
+	(( failed_tests=failed_tests+1 ))
+	ERROR=$(cat ErrorLog.txt);
  	echo "<tr> <td>$test_script</td><td bgcolor='red'>Failed</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
     echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
-   	echo "<failure message='Something goes wrong'>Test exited with exit code = $result</failure>" >> junit.xml;
+   	echo "<failure message='Something goes wrong'>$ERROR</failure>" >> junit.xml;
     echo "</testcase>" >> junit.xml
     echo "Test failed with exit code = $result!";
+	echo "$(basename $test_script .lua)" >> failed_tests.txt;
+    failed=1;
+ fi 
+ if [ $result -ne 0 ] && [ $result -ne 1 ] && [ $result -ne 2 ]; then
+   	stop=$SECONDS;
+ 	(( runtime=stop-start ));
+ 	(( total_time=total_time+runtime ));
+	(( failed_tests=failed_tests+1 ))
+ 	echo "<tr> <td>$test_script</td><td bgcolor='orange'>Aborted</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
+	ERROR=$(cat ErrorLog.txt);
+    echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
+   	echo "<failure message='Something goes wrong'>$ERROR</failure>" >> junit.xml;
+    echo "</testcase>" >> junit.xml
+    echo "Test aborted with exit code = $result!";
 	echo "$(basename $test_script .lua)" >> failed_tests.txt;
     failed=1;
  fi

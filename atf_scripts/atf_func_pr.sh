@@ -19,23 +19,20 @@ seconds2time ()
 
 mkdir aut
 cd aut
-TEST_SET="rc.txt"
-if [ "$POLICY" == "BASE" ]; then
-	wget http://172.30.23.4:8081/artifactory/OpenSDL/${SDL_BUILD}/OpenSDL.tar.gz
-else
-	wget http://172.30.23.4:8081/artifactory/OpenSDL_Func_PR/${SDL_BUILD}/OpenSDL_${POLICY}.tar.gz
-fi
-if [ "$POLICY" == "HTTP" ]; then
-	TEST_SET="policies_happy_paths_HTTP.txt"
-fi
-if [ "$POLICY" == "EXTERNAL_PROPRIETARY" ]; then
-	TEST_SET="policies_happy_paths_EXTERNAL_PROPRIETARY.txt"
-fi
-if [ "$POLICY" == "PROPRIETARY" ]; then
-	TEST_SET="policies_happy_paths_PROPRIETARY.txt"
-fi
+TEST_SET=${TEST_SET}
+wget http://172.30.23.4:8081/artifactory/OpenSDL_Func_PR/PROPRIETARY/${SDL_BUILD}/OpenSDL.tar.gz
 
-tar -xvf OpenSDL_${POLICY}.tar.gz
+#if [ "$POLICY" == "HTTP" ]; then
+#	TEST_SET="policies_happy_paths_HTTP.txt"
+#fi
+#if [ "$POLICY" == "EXTENDED" ]; then
+#	TEST_SET="policies_happy_paths_EXTERNAL_PROPRIETARY.txt"
+#fi
+#if [ "$POLICY" == "PROPRIETARY" ]; then
+#	TEST_SET="policies_happy_paths_PROPRIETARY.txt"
+#fi
+
+tar -xvf OpenSDL.tar.gz
 cd bin
 pwd
 export LD_LIBRARY_PATH=.
@@ -61,7 +58,7 @@ echo ${POLICY}
 echo "Backup SDL"
 #Backup
 ./SDL_environment_setup.sh -b ${WORKSPACE}/aut/bin
-echo "<html><head><title>ATF Pull Request Extended Functionality ${POLICY} Report - Build#${BUILD_NUMBER}</title></head>" >> atf_report.html
+echo "<html><head><title>ATF Pull Request RC=${RC} ${POLICY} Report - Build#${BUILD_NUMBER}</title></head>" >> atf_report.html
 
 echo "<script src='https://code.jquery.com/jquery-3.1.1.min.js' integrity='sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=' crossorigin='anonymous'></script>" >> atf_report.html
 echo "<script src='https://code.jquery.com/ui/1.12.0/jquery-ui.min.js' integrity='sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E=' crossorigin='anonymous'></script>" >> atf_report.html
@@ -89,7 +86,9 @@ pased_tests=0;
 failed_tests=0;
 echo "<testsuite name='ALL TESTS_${POLICY}'>" >> junit.xml
 #for i in $(find ./tmp/ -type f -name "*.lua");
-echo "$(cat ./test_sets/$TEST_SET)" 
+echo "$(cat ./test_sets/$TEST_SET)";
+touch failed_tests.txt;
+touch success_tests.txt;
 while read -r i
 do
  test_script=$(echo $i | awk '{print $1}')
@@ -110,14 +109,29 @@ do
     echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime' />" >> junit.xml;
 	echo "$(basename $test_script .lua)" >> success_tests.txt;
  fi
- if [ $result -ne 0 ]; then
+ if [ $result -eq 1 ]; then
  	stop=$SECONDS;
  	(( runtime=stop-start ));
  	(( total_time=total_time+runtime ));
 	(( failed_tests=failed_tests+1 ))
+	ERROR=$(cat ErrorLog.txt);
+ 	echo "<tr> <td>$test_script</td><td bgcolor='orange'>Aborted</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
+    echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
+   	echo "<failure message='Something goes wrong'>$ERROR</failure>" >> junit.xml;
+    echo "</testcase>" >> junit.xml
+    echo "Test aborted with exit code = $result!";
+	echo "$(basename $test_script .lua)" >> failed_tests.txt;
+    failed=1;
+ fi
+ if [ $result -eq 2 ]; then
+ 	stop=$SECONDS;
+ 	(( runtime=stop-start ));
+ 	(( total_time=total_time+runtime ));
+	(( failed_tests=failed_tests+1 ))
+	ERROR=$(cat ErrorLog.txt);
  	echo "<tr> <td>$test_script</td><td bgcolor='red'>Failed</td><td>$runtime</td><td><a href='https://adc.luxoft.com/jira/browse/$(echo $i | awk '{print $2}')'>$(echo $i | awk '{print $2}')</a></td></tr>" >> atf_report.html;
     echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
-   	echo "<failure message='Something goes wrong'>Test exited with exit code = $result</failure>" >> junit.xml;
+   	echo "<failure message='Something goes wrong'>$ERROR</failure>" >> junit.xml;
     echo "</testcase>" >> junit.xml
     echo "Test failed with exit code = $result!";
 	echo "$(basename $test_script .lua)" >> failed_tests.txt;
@@ -141,7 +155,7 @@ do
   echo "<testcase name='$(basename $test_script .lua)' classname='lua' time='$runtime'>" >> junit.xml;
   echo "<skipped /></testcase>" >> junit.xml
   echo "Test failed with exit code = $result!";
-  echo "$(basename $test_script .lua)" >> skipped_tests.txt;  
+  echo "$(basename $test_script .lua)" >> skipped_tests.txt;
 fi
 done < ./test_sets/$TEST_SET
 echo "</table><br>Total time: $(seconds2time $total_time)" >> atf_report.html
@@ -161,8 +175,13 @@ echo "{ATF_TOTAL:$(( pased_tests+failed_tests )) }"
 wget -O old_failed_tests.txt ${JOB_URL}lastCompletedBuild/artifact/failed_tests.txt
 wget -O old_success_tests.txt ${JOB_URL}lastCompletedBuild/artifact/success_tests.txt
 
-awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
-awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
+if [ -f old_failed_tests.txt ]; then
+	if [ -f old_success_tests.txt ]; then
+		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_failed_tests.txt f=2 failed_tests.txt >> new_failures.txt
+		awk '{if (f==1) { r[$0] } else if (! ($0 in r)) { print $0 } } ' f=1 old_success_tests.txt f=2 success_tests.txt >> new_success.txt
+	fi
+fi
+
 
 NUMOFFAILURES=$(cat new_failures.txt | wc -l )
 NUMOFSUCCESS=$(cat new_success.txt | wc -l )
