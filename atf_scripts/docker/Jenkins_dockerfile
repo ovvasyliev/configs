@@ -1,0 +1,7 @@
+FROM jenkinsci/jenkins:2.61
+USER root
+COPY smtp.luxoft.com.cer /var/jenkins_home
+RUN keytool -importcert -trustcacerts -file /var/jenkins_home/smtp.luxoft.com.cer -keystore /etc/ssl/certs/java/cacerts -storepass changeit -noprompt -alias SMTP
+
+ENV TZ=Europe/Kiev
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone

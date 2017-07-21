@@ -29,7 +29,7 @@ TEST_SET=${TEST_SET}
 # wget http://172.30.23.4:8081/artifactory/OpenSDL_${SDL_FOLDER}/${SDL_BUILD}/OpenSDL_${POLICY}.tar.gz
 #fi
 
-wget http://172.30.23.4:8081/artifactory/OpenSDL_${SDL_FOLDER}/NIGHTLY/${SDL_BUILD}/${RC}/OpenSDL_${POLICY}.tar.gz
+wget http://172.30.23.4:8081/artifactory/OpenSDL_${SDL_FOLDER}/${BUILD_TYPE}/${SDL_BUILD}/${RC}/OpenSDL_${POLICY}.tar.gz
 
 tar -xvf OpenSDL_${POLICY}.tar.gz
 cd bin

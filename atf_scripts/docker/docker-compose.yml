@@ -1,33 +1,22 @@
 jenkins_agent:
     build: .
-    dockerfile: Dockerfile_opensdl_new
+    dockerfile: Dockerfile_slave
+    cap_add:
+     - NET_ADMIN
     restart: always
+    container_name: agent
     labels:
       container_group: jenkins
 
-jenkins_agent_open_sdl:
-    build: .
-    dockerfile: Dockerfile_opensdl
-    restart: always
-atf_slave:
-    build: .
-    dockerfile: Dockerfile_opensdl
-    labels:
-      container_group: jenkins
-jenkins_agent_atf_14:
-    build: .
-    dockerfile: Dockerfile_jenkins_agent_atf_14
 jenkins:
-    image: jenkinsci/jenkins:latest
-    container_name: jenkins_server
+    build: .
+    dockerfile: Jenkins_dockerfile
     environment:
      - JENKINS_JAVA_OPTIONS=-Dmail.smtp.starttls.enable=true
      - JENKINS_OPTS=-Dmail.smtp.starttls.enable=true
      - JAVA_ARGS=-Dmail.smtp.starttls.enable=true
      - JENKINS_OPTS=mail.smtp.starttls.enable=true
      - JAVA_OPTS=-Dmail.smtp.starttls.enable=true -Djava.awt.headless=true
-    links:
-     - jenkins_agent:jenkins
     ports:
      - "8080:8080"
      - "50000:50000"
@@ -36,6 +25,8 @@ jenkins:
      - "/home/jenkins/docker/jenkins_files:/var/jenkins_home"
      - "/home/jenkins/jenkins_temp:/var/tmp"
     restart: always
+    links:
+     - "jenkins_agent"
     labels:
       container_group: jenkins
 
@@ -52,23 +43,19 @@ artifactory:
     labels:
       container_group: jenkins
 
-elastic:
-    image: elasticsearch
-    ports:
-     - "9200:9200"
-     - "9300:9300"
-
-kibana:
-    image: kibana
+staging_jenkins:
+    build: .
+    dockerfile: Jenkins_dockerfile
     environment:
-     - ELASTICSEARCH_URL=http://172.17.0.9:9200
+     - JENKINS_JAVA_OPTIONS=-Dmail.smtp.starttls.enable=true
+     - JENKINS_OPTS=-Dmail.smtp.starttls.enable=true
+     - JAVA_ARGS=-Dmail.smtp.starttls.enable=true
+     - JENKINS_OPTS=mail.smtp.starttls.enable=true
+     - JAVA_OPTS=-Dmail.smtp.starttls.enable=true -Djava.awt.headless=true
     ports:
-     - "5601:5601"
-
-dockerui:
-    image: uifd/ui-for-docker
-    container_name: dockerui
-    ports:
-     - "9000:9000"
+     - "9999:8080"
+     - "60000:50000"
+    volumes:
+     - "/home/jenkins/shared_folder_jenkins/jenkins_files:/var/jenkins_home"
     labels:
       container_group: jenkins
